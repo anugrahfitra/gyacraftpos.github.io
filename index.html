@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GYA POS">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./assets/icon-192.png">
+    <title>GYA CRAFT — CFD POS</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            accent: '#ec4899',
+                            dark: '#0f172a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 pb-20 md:pb-0 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Header App Bar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-3 flex items-center justify-between shadow-sm">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-sky-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg shadow">
+                G
+            </div>
+            <div>
+                <h1 class="font-bold text-slate-800 text-base leading-tight">GYA CRAFT</h1>
+                <p class="text-xs text-slate-500">CFD Keyboard Keychain POS</p>
+            </div>
+        </div>
+        <div id="offlineBadge" class="flex items-center space-x-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full text-[10px] font-semibold mr-2" aria-live="polite">
+            <span class="w-2 h-2 rounded-full bg-emerald-500" id="networkStatusDot"></span>
+            <span id="networkStatusText">Online</span>
+        </div>
+        <div id="sessionBadge" class="flex items-center space-x-2 bg-slate-100 px-3 py-1 rounded-full text-xs font-medium">
+            <span class="w-2 h-2 rounded-full bg-rose-500" id="sessionStatusDot"></span>
+            <span id="sessionStatusText" class="text-slate-600">Tidak Ada Sesi</span>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 mb-16 md:mb-0">
+        
+        <!-- ALERT BANNER FOR NO ACTIVE SESSION -->
+        <div id="noSessionBanner" class="hidden bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl mb-4 flex items-center justify-between shadow-sm">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-triangle-exclamation text-amber-500 text-xl"></i>
+                <div class="text-xs md:text-sm">
+                    <p class="font-bold">Sesi CFD Belum Aktif!</p>
+                    <p>Mulai sesi CFD baru untuk mulai mencatat pesanan & interaksi.</p>
+                </div>
+            </div>
+            <button onclick="switchTab('session')" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow">
+                Mulai Sesi
+            </button>
+        </div>
+
+        <!-- 1. DASHBOARD TAB -->
+        <section id="tab-dashboard" class="tab-content space-y-6">
+            <!-- Action Quick Bar -->
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="addInteraction()" class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-4 rounded-2xl shadow-md hover:shadow-lg active:scale-95 transition flex flex-col items-center justify-center text-center group">
+                    <i class="fa-solid fa-user-group text-2xl mb-1 group-hover:scale-110 transition"></i>
+                    <span class="font-bold text-sm">+ Interaksi</span>
+                    <span class="text-[10px] opacity-80">(Tambah 1 Kelompok)</span>
+                </button>
+                <button onclick="openNewOrderModal()" class="bg-gradient-to-r from-sky-500 to-blue-600 text-white p-4 rounded-2xl shadow-md hover:shadow-lg active:scale-95 transition flex flex-col items-center justify-center text-center group">
+                    <i class="fa-solid fa-cart-plus text-2xl mb-1 group-hover:scale-110 transition"></i>
+                    <span class="font-bold text-sm">+ Order Baru</span>
+                    <span class="text-[10px] opacity-80">(Buat Transaksi)</span>
+                </button>
+            </div>
+
+            <!-- Summary KPI Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                    <p class="text-xs text-slate-500 font-medium">Total Omzet</p>
+                    <h3 class="text-lg md:text-xl font-bold text-slate-800 mt-1" id="kpiOmzet">Rp0</h3>
+                    <p class="text-[10px] text-slate-400 mt-1">Hanya status Lunas</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                    <p class="text-xs text-slate-500 font-medium">Interaksi Booth</p>
+                    <h3 class="text-lg md:text-xl font-bold text-slate-800 mt-1" id="kpiInteraksi">0 <span class="text-xs font-normal text-slate-500">Kelompok</span></h3>
+                    <p class="text-[10px] text-slate-400 mt-1">Pengunjung tertarik</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                    <p class="text-xs text-slate-500 font-medium">Conversion Rate</p>
+                    <h3 class="text-lg md:text-xl font-bold text-emerald-600 mt-1" id="kpiConversion">0%</h3>
+                    <p class="text-[10px] text-slate-400 mt-1">Pembeli / Interaksi</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                    <p class="text-xs text-slate-500 font-medium">Terjual / Order</p>
+                    <h3 class="text-lg md:text-xl font-bold text-slate-800 mt-1"><span id="kpiTerjual">0</span> pcs <span class="text-xs text-slate-400">/ <span id="kpiOrderCount">0</span> txn</span></h3>
+                    <p class="text-[10px] text-slate-400 mt-1" id="kpiAov">AOV: Rp0</p>
+                </div>
+            </div>
+
+            <!-- Color & Letter Analytics -->
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                    <h4 class="font-bold text-slate-700 text-sm mb-3 flex items-center justify-between">
+                        <span><i class="fa-solid fa-palette text-pink-500 mr-2"></i>Warna Base Terpopuler</span>
+                    </h4>
+                    <div class="h-48 relative">
+                        <canvas id="chartBaseColors"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                    <h4 class="font-bold text-slate-700 text-sm mb-3 flex items-center justify-between">
+                        <span><i class="fa-solid fa-font text-sky-500 mr-2"></i>Warna Huruf Terpopuler</span>
+                    </h4>
+                    <div class="h-48 relative">
+                        <canvas id="chartLetterColors"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Letter Length Distribution -->
+            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                <h4 class="font-bold text-slate-700 text-sm mb-3">
+                    <i class="fa-solid fa-chart-simple text-purple-500 mr-2"></i>Distribusi Jumlah Karakter Nama
+                </h4>
+                <div class="h-44 relative">
+                    <canvas id="chartLetterCount"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. ORDERS TAB -->
+        <section id="tab-orders" class="tab-content hidden space-y-4">
+            <!-- Filter Bar -->
+            <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                <div class="flex space-x-1 overflow-x-auto hide-scrollbar w-full text-xs font-semibold">
+                    <button onclick="filterOrders('ALL')" class="order-filter-btn px-3 py-1.5 rounded-lg bg-slate-800 text-white whitespace-nowrap" data-status="ALL">Semua</button>
+                    <button onclick="filterOrders('Dalam Perakitan')" class="order-filter-btn px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 whitespace-nowrap" data-status="Dalam Perakitan">Perakitan 🛠️</button>
+                    <button onclick="filterOrders('Siap Diambil')" class="order-filter-btn px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 whitespace-nowrap" data-status="Siap Diambil">Siap 🎁</button>
+                    <button onclick="filterOrders('Sudah Dibayar')" class="order-filter-btn px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 whitespace-nowrap" data-status="Sudah Dibayar">Lunas 💰</button>
+                </div>
+            </div>
+
+            <!-- Order List Container -->
+            <div id="orderListContainer" class="space-y-3">
+                <!-- Orders will be injected here -->
+            </div>
+        </section>
+
+        <!-- 3. SESSION TAB -->
+        <section id="tab-session" class="tab-content hidden space-y-4">
+            <!-- Active Session Card -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                <h3 class="font-bold text-slate-800 text-base">Kontrol Sesi CFD Aktif</h3>
+                
+                <div id="activeSessionDetails" class="p-4 bg-slate-50 rounded-xl space-y-2 text-sm border border-slate-200/60">
+                    <div class="flex justify-between text-xs text-slate-500">
+                        <span>ID Sesi:</span>
+                        <span id="currentSessionId" class="font-mono font-bold text-slate-700">-</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-500">
+                        <span>Lokasi / Event:</span>
+                        <span id="currentSessionLoc" class="font-semibold text-slate-700">-</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-500">
+                        <span>Waktu Mulai:</span>
+                        <span id="currentSessionStart" class="text-slate-700">-</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-500">
+                        <span>Total Kelompok Interaksi:</span>
+                        <span id="currentSessionInteractions" class="font-bold text-emerald-600 text-sm">0</span>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button id="btnStartSession" onclick="showStartSessionModal()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md transition text-sm">
+                        <i class="fa-solid fa-play mr-2"></i>Mulai Sesi Baru
+                    </button>
+                    <button id="btnEndSession" onclick="endCurrentSession()" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl shadow-md transition text-sm disabled:opacity-50">
+                        <i class="fa-solid fa-stop mr-2"></i>Tutup Sesi CFD
+                    </button>
+                </div>
+            </div>
+
+            <!-- Session History -->
+            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                <h4 class="font-bold text-slate-700 text-sm mb-3">Riwayat Sesi CFD</h4>
+                <div id="sessionHistoryList" class="space-y-2 max-h-80 overflow-y-auto">
+                    <!-- History injected here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. SETTINGS & BACKUP TAB -->
+        <section id="tab-settings" class="tab-content hidden space-y-6">
+            <!-- Pricing Config -->
+            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm space-y-3">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                    <i class="fa-solid fa-tags text-sky-500 mr-2"></i>Pengaturan Harga Dynamic
+                </h3>
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                        <label class="block text-slate-500 font-medium mb-1">Harga Huruf Pertama (Rp)</label>
+                        <input type="number" id="cfgBasePrice" class="w-full p-2 border border-slate-200 rounded-lg font-bold" value="15000">
+                    </div>
+                    <div>
+                        <label class="block text-slate-500 font-medium mb-1">Tambahan Per Karakter (Rp)</label>
+                        <input type="number" id="cfgExtraPrice" class="w-full p-2 border border-slate-200 rounded-lg font-bold" value="5000">
+                    </div>
+                </div>
+                <button onclick="savePricingConfig()" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-2 rounded-lg text-xs font-semibold">Simpan Pengaturan Harga</button>
+            </div>
+
+            <!-- Color Palette Manager -->
+            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm space-y-3">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center justify-between">
+                    <span><i class="fa-solid fa-palette text-pink-500 mr-2"></i>Kelola Preset Warna 3D Printing</span>
+                </h3>
+                
+                <div class="space-y-3">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-600 mb-2">Preset Warna Base (Keyboard Casing):</p>
+                        <div id="baseColorChips" class="flex flex-wrap gap-1.5 mb-2"></div>
+                        <div class="flex gap-2">
+                            <input type="text" id="newBaseColorName" placeholder="Warna Baru (misal: Mint)" class="text-xs p-2 border rounded-lg flex-1">
+                            <button onclick="addColorPreset('base')" class="bg-pink-600 text-white text-xs px-3 rounded-lg font-semibold">+ Tambah</button>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <div>
+                        <p class="text-xs font-semibold text-slate-600 mb-2">Preset Warna Huruf (Keycaps):</p>
+                        <div id="letterColorChips" class="flex flex-wrap gap-1.5 mb-2"></div>
+                        <div class="flex gap-2">
+                            <input type="text" id="newLetterColorName" placeholder="Warna Baru (misal: Lavender)" class="text-xs p-2 border rounded-lg flex-1">
+                            <button onclick="addColorPreset('letter')" class="bg-sky-600 text-white text-xs px-3 rounded-lg font-semibold">+ Tambah</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Export / Import / Backup -->
+            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm space-y-3">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center">
+                    <i class="fa-solid fa-database text-emerald-500 mr-2"></i>Data & Backup (IndexedDB Storage)
+                </h3>
+                <p class="text-xs text-slate-500">Data tersimpan di browser perangkat ini. Lakukan backup JSON sebelum berganti perangkat.</p>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <button onclick="exportDataJSON()" class="bg-emerald-50 border border-emerald-200 text-emerald-700 py-2.5 rounded-lg font-semibold hover:bg-emerald-100 flex items-center justify-center">
+                        <i class="fa-solid fa-download mr-1.5"></i> Export Backup JSON
+                    </button>
+                    <label class="bg-sky-50 border border-sky-200 text-sky-700 py-2.5 rounded-lg font-semibold hover:bg-sky-100 flex items-center justify-center cursor-pointer">
+                        <i class="fa-solid fa-upload mr-1.5"></i> Restore JSON
+                        <input type="file" id="importFileInput" onchange="importDataJSON(event)" accept=".json" class="hidden">
+                    </label>
+                </div>
+                <button onclick="exportOrdersCSV()" class="w-full bg-slate-100 border border-slate-200 text-slate-700 py-2.5 rounded-lg font-semibold text-xs hover:bg-slate-200 flex items-center justify-center">
+                    <i class="fa-solid fa-file-excel text-emerald-600 mr-2"></i> Export Data Pesanan ke CSV (Excel)
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Mobile Navigation Bar -->
+    <nav class="bg-white border-t border-slate-200 fixed bottom-0 left-0 right-0 z-30 flex justify-around py-2 shadow-lg md:max-w-4xl md:mx-auto md:rounded-t-2xl">
+        <button onclick="switchTab('dashboard')" class="nav-btn flex flex-col items-center text-slate-500 font-medium text-[11px] w-1/4 active-nav" data-tab="dashboard">
+            <i class="fa-solid fa-chart-pie text-lg mb-0.5"></i>
+            <span>Dashboard</span>
+        </button>
+        <button onclick="switchTab('orders')" class="nav-btn flex flex-col items-center text-slate-500 font-medium text-[11px] w-1/4" data-tab="orders">
+            <i class="fa-solid fa-list-check text-lg mb-0.5"></i>
+            <span>Pesanan</span>
+        </button>
+        <button onclick="switchTab('session')" class="nav-btn flex flex-col items-center text-slate-500 font-medium text-[11px] w-1/4" data-tab="session">
+            <i class="fa-solid fa-clock-rotate-left text-lg mb-0.5"></i>
+            <span>Sesi CFD</span>
+        </button>
+        <button onclick="switchTab('settings')" class="nav-btn flex flex-col items-center text-slate-500 font-medium text-[11px] w-1/4" data-tab="settings">
+            <i class="fa-solid fa-sliders text-lg mb-0.5"></i>
+            <span>Pengaturan</span>
+        </button>
+    </nav>
+
+    <!-- MODAL: NEW ORDER -->
+    <div id="modalNewOrder" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-2xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl animate-slide-up">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base">Buat Pesanan Custom Baru</h3>
+                    <p class="text-xs text-slate-500">CFD Keyboard Keychains</p>
+                </div>
+                <button onclick="closeModal('modalNewOrder')" class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm">✕</button>
+            </div>
+
+            <!-- Modal Form Scrollable Content -->
+            <div class="p-4 overflow-y-auto flex-1 space-y-4">
+                <!-- Buyer Info -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Pembeli (Opsional)</label>
+                        <input type="text" id="orderBuyerName" placeholder="mis: Kak Budi" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Catatan Pesanan</label>
+                        <input type="text" id="orderNote" placeholder="mis: Diambil jam 09.30" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <hr class="border-slate-100">
+
+                <!-- Products List in Order -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Item Keychain Dipesan</h4>
+                        <span class="text-xs font-semibold text-sky-600" id="orderItemCountBadge">1 Item</span>
+                    </div>
+
+                    <div id="orderItemsContainer" class="space-y-4">
+                        <!-- Dynamic Item Cards Inserted Here -->
+                    </div>
+
+                    <button type="button" onclick="addOrderItemRow()" class="w-full py-2.5 bg-slate-100 border border-dashed border-slate-300 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-200 transition">
+                        + Tambah Produk Lain dalam Transaksi Ini
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Footer & Checkout -->
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] text-slate-500 block">Total Pembayaran:</span>
+                    <span class="text-lg font-extrabold text-slate-800" id="modalTotalOrderPrice">Rp0</span>
+                </div>
+                <div class="flex space-x-2">
+                    <button type="button" onclick="closeModal('modalNewOrder')" class="px-4 py-2.5 text-xs font-semibold text-slate-600 bg-slate-200 rounded-xl">Batal</button>
+                    <button type="button" onclick="submitNewOrder()" class="px-5 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md">Simpan Order</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: START SESSION -->
+    <div id="modalStartSession" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-xl">
+            <h3 class="font-bold text-slate-800 text-base">Mulai Sesi CFD Baru</h3>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Lokasi CFD / Event</label>
+                <input type="text" id="sessionLocationInput" placeholder="mis: CFD Sudirman - Gate 5" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-sky-500" value="CFD Bazaar">
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button onclick="closeModal('modalStartSession')" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 rounded-xl">Batal</button>
+                <button onclick="confirmStartSession()" class="px-4 py-2 text-xs font-bold text-white bg-emerald-600 rounded-xl">Mulai Sesi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastContainer" class="fixed top-16 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- JAVASCRIPT APP LOGIC -->
+    <script>
+        // --- APP STATE & STORAGE ---
+        const DB_NAME = 'GyaCraftCFDPOS_DB';
+        const DB_VERSION = 1;
+        let db = null;
+
+        // Configuration State
+        let config = {
+            basePrice: 15000,
+            extraPricePerChar: 5000,
+            baseColors: ['Pink', 'White', 'Black', 'Blue', 'Mint', 'Purple', 'Yellow', 'Red'],
+            letterColors: ['White', 'Black', 'Blue', 'Purple', 'Pink', 'Yellow', 'Green', 'Orange']
+        };
+
+        // Active State
+        let activeSession = null;
+        let activeOrders = [];
+        let currentFilter = 'ALL';
+        let charts = {};
+
+        // --- INDEXEDDB STORAGE ENGINE ---
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    const database = e.target.result;
+                    if (!database.objectStoreNames.contains('sessions')) {
+                        database.createObjectStore('sessions', { keyPath: 'session_id' });
+                    }
+                    if (!database.objectStoreNames.contains('orders')) {
+                        database.createObjectStore('orders', { keyPath: 'order_id' });
+                    }
+                    if (!database.objectStoreNames.contains('interactions')) {
+                        database.createObjectStore('interactions', { keyPath: 'interaction_id' });
+                    }
+                    if (!database.objectStoreNames.contains('settings')) {
+                        database.createObjectStore('settings', { keyPath: 'key' });
+                    }
+                };
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve(db);
+                };
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function dbSave(storeName, data) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                store.put(data);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        async function dbGetAll(storeName) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        // --- OFFLINE / PWA STATUS ---
+        function updateNetworkStatus() {
+            const online = navigator.onLine;
+            const badge = document.getElementById('offlineBadge');
+            const dot = document.getElementById('networkStatusDot');
+            const label = document.getElementById('networkStatusText');
+            if (!badge || !dot || !label) return;
+            label.textContent = online ? 'Online' : 'Offline';
+            badge.className = online
+                ? 'flex items-center space-x-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full text-[10px] font-semibold mr-2'
+                : 'flex items-center space-x-1 bg-amber-50 text-amber-700 px-2 py-1 rounded-full text-[10px] font-semibold mr-2';
+            dot.className = online ? 'w-2 h-2 rounded-full bg-emerald-500' : 'w-2 h-2 rounded-full bg-amber-500';
+        }
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+
+        async function requestPersistentStorage() {
+            try {
+                if (navigator.storage && navigator.storage.persist) {
+                    await navigator.storage.persist();
+                }
+            } catch (err) {
+                console.warn('Persistent storage request unavailable:', err);
+            }
+        }
+
+        // --- APP INITIALIZATION ---
+        window.addEventListener('load', async () => {
+            updateNetworkStatus();
+            requestPersistentStorage();
+            try {
+                await initDB();
+                await loadSettings();
+                await loadActiveSession();
+                await reloadAllData();
+                renderColorSettingsChips();
+                initCharts();
+            } catch (err) {
+                console.error("Initialization Error:", err);
+                showToast("Gagal memuat database lokal.", "danger");
+            }
+        });
+
+        // Load pricing & color settings
+        async function loadSettings() {
+            const savedConfig = await new Promise(res => {
+                const tx = db.transaction('settings', 'readonly');
+                const req = tx.objectStore('settings').get('app_config');
+                req.onsuccess = () => res(req.result?.value);
+            });
+            if (savedConfig) {
+                config = { ...config, ...savedConfig };
+                document.getElementById('cfgBasePrice').value = config.basePrice;
+                document.getElementById('cfgExtraPrice').value = config.extraPricePerChar;
+            }
+        }
+
+        async function savePricingConfig() {
+            config.basePrice = parseInt(document.getElementById('cfgBasePrice').value) || 15000;
+            config.extraPricePerChar = parseInt(document.getElementById('cfgExtraPrice').value) || 5000;
+            await dbSave('settings', { key: 'app_config', value: config });
+            showToast("Pengaturan harga berhasil disimpan!");
+        }
+
+        // Color Presets Management
+        function renderColorSettingsChips() {
+            const baseContainer = document.getElementById('baseColorChips');
+            const letterContainer = document.getElementById('letterColorChips');
+            
+            baseContainer.innerHTML = config.baseColors.map(c => 
+                `<span class="bg-slate-100 text-slate-700 text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+                    ${c} <i class="fa-solid fa-xmark text-slate-400 hover:text-rose-500 cursor-pointer" onclick="removeColorPreset('base', '${c}')"></i>
+                </span>`
+            ).join('');
+
+            letterContainer.innerHTML = config.letterColors.map(c => 
+                `<span class="bg-slate-100 text-slate-700 text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+                    ${c} <i class="fa-solid fa-xmark text-slate-400 hover:text-rose-500 cursor-pointer" onclick="removeColorPreset('letter', '${c}')"></i>
+                </span>`
+            ).join('');
+        }
+
+        async function addColorPreset(type) {
+            const inputId = type === 'base' ? 'newBaseColorName' : 'newLetterColorName';
+            const val = document.getElementById(inputId).value.trim();
+            if (!val) return;
+
+            if (type === 'base' && !config.baseColors.includes(val)) {
+                config.baseColors.push(val);
+            } else if (type === 'letter' && !config.letterColors.includes(val)) {
+                config.letterColors.push(val);
+            }
+            document.getElementById(inputId).value = '';
+            await dbSave('settings', { key: 'app_config', value: config });
+            renderColorSettingsChips();
+            showToast(`Preset warna ${val} ditambahkan!`);
+        }
+
+        async function removeColorPreset(type, name) {
+            if (type === 'base') {
+                config.baseColors = config.baseColors.filter(c => c !== name);
+            } else {
+                config.letterColors = config.letterColors.filter(c => c !== name);
+            }
+            await dbSave('settings', { key: 'app_config', value: config });
+            renderColorSettingsChips();
+        }
+
+        // --- SESSION MANAGEMENT ---
+        async function loadActiveSession() {
+            const sessions = await dbGetAll('sessions');
+            activeSession = sessions.find(s => s.status === 'ACTIVE') || null;
+            updateSessionUI();
+        }
+
+        function updateSessionUI() {
+            const statusDot = document.getElementById('sessionStatusDot');
+            const statusText = document.getElementById('sessionStatusText');
+            const banner = document.getElementById('noSessionBanner');
+            const btnStart = document.getElementById('btnStartSession');
+            const btnEnd = document.getElementById('btnEndSession');
+
+            if (activeSession) {
+                statusDot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+                statusText.innerText = `Sesi Aktif: ${activeSession.location}`;
+                banner.classList.add('hidden');
+                
+                document.getElementById('currentSessionId').innerText = activeSession.session_id.substring(0, 8);
+                document.getElementById('currentSessionLoc').innerText = activeSession.location;
+                document.getElementById('currentSessionStart').innerText = new Date(activeSession.started_at).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+                document.getElementById('currentSessionInteractions').innerText = activeSession.total_interactions || 0;
+
+                btnStart.disabled = true;
+                btnStart.classList.add('opacity-50');
+                btnEnd.disabled = false;
+                btnEnd.classList.remove('opacity-50');
+            } else {
+                statusDot.className = "w-2 h-2 rounded-full bg-rose-500";
+                statusText.innerText = "Tidak Ada Sesi";
+                banner.classList.remove('hidden');
+
+                document.getElementById('currentSessionId').innerText = "-";
+                document.getElementById('currentSessionLoc').innerText = "-";
+                document.getElementById('currentSessionStart').innerText = "-";
+                document.getElementById('currentSessionInteractions').innerText = "0";
+
+                btnStart.disabled = false;
+                btnStart.classList.remove('opacity-50');
+                btnEnd.disabled = true;
+                btnEnd.classList.add('opacity-50');
+            }
+        }
+
+        function showStartSessionModal() {
+            document.getElementById('modalStartSession').classList.remove('hidden');
+        }
+
+        async function confirmStartSession() {
+            const loc = document.getElementById('sessionLocationInput').value || 'CFD Bazaar';
+            const newSession = {
+                session_id: 'SES-' + Date.now().toString(36).toUpperCase(),
+                date: new Date().toISOString().split('T')[0],
+                location: loc,
+                started_at: new Date().toISOString(),
+                ended_at: null,
+                status: 'ACTIVE',
+                total_interactions: 0
+            };
+            await dbSave('sessions', newSession);
+            activeSession = newSession;
+            closeModal('modalStartSession');
+            updateSessionUI();
+            await reloadAllData();
+            showToast("Sesi CFD Berhasil Dimulai!");
+        }
+
+        async function endCurrentSession() {
+            if (!activeSession) return;
+            if (!confirm("Yakin ingin menutup sesi CFD saat ini?")) return;
+            
+            activeSession.status = 'CLOSED';
+            activeSession.ended_at = new Date().toISOString();
+            await dbSave('sessions', activeSession);
+            activeSession = null;
+            updateSessionUI();
+            await reloadAllData();
+            showToast("Sesi CFD telah ditutup.");
+        }
+
+        // --- INTERACTION TRACKING ---
+        async function addInteraction() {
+            if (!activeSession) {
+                showToast("Mulai sesi CFD terlebih dahulu!", "warning");
+                return;
+            }
+            activeSession.total_interactions = (activeSession.total_interactions || 0) + 1;
+            await dbSave('sessions', activeSession);
+
+            const interactionRecord = {
+                interaction_id: 'INT-' + Date.now().toString(36).toUpperCase(),
+                session_id: activeSession.session_id,
+                created_at: new Date().toISOString()
+            };
+            await dbSave('interactions', interactionRecord);
+
+            updateSessionUI();
+            await reloadAllData();
+            showToast("+1 Kelompok Interaksi Dicatat!");
+        }
+
+        // --- ORDER MANAGEMENT & DYNAMIC PRICING ---
+        let modalItems = [];
+
+        function openNewOrderModal() {
+            if (!activeSession) {
+                showToast("Mulai sesi CFD terlebih dahulu!", "warning");
+                return;
+            }
+            modalItems = [];
+            document.getElementById('orderBuyerName').value = '';
+            document.getElementById('orderNote').value = '';
+            addOrderItemRow(); // Add first item
+            document.getElementById('modalNewOrder').classList.remove('hidden');
+        }
+
+        function addOrderItemRow() {
+            const itemId = 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+            modalItems.push({
+                id: itemId,
+                custom_name: '',
+                base_colors: [config.baseColors[0] || 'Pink'],
+                letter_colors: [config.letterColors[0] || 'White'],
+                accessory_type: 'Biji Lada',
+                follow_instagram: false
+            });
+            renderModalItems();
+        }
+
+        function removeOrderItemRow(itemId) {
+            if (modalItems.length <= 1) {
+                showToast("Pesanan minimal berisi 1 produk", "warning");
+                return;
+            }
+            modalItems = modalItems.filter(i => i.id !== itemId);
+            renderModalItems();
+        }
+
+        function calculateItemPrice(customName) {
+            // Count all non-space characters
+            const count = customName.replace(/\s+/g, '').length;
+            if (count === 0) return 0;
+            return config.basePrice + Math.max(0, count - 1) * config.extraPricePerChar;
+        }
+
+        function renderModalItems() {
+            const container = document.getElementById('orderItemsContainer');
+            document.getElementById('orderItemCountBadge').innerText = `${modalItems.length} Item`;
+
+            let totalPrice = 0;
+
+            container.innerHTML = modalItems.map((item, index) => {
+                const charCount = item.custom_name.replace(/\s+/g, '').length;
+                const price = calculateItemPrice(item.custom_name);
+                totalPrice += price;
+
+                const baseColorOptions = config.baseColors.map(c => 
+                    `<option value="${c}" ${item.base_colors.includes(c) ? 'selected' : ''}>${c}</option>`
+                ).join('');
+
+                const letterColorOptions = config.letterColors.map(c => 
+                    `<option value="${c}" ${item.letter_colors.includes(c) ? 'selected' : ''}>${c}</option>`
+                ).join('');
+
+                return `
+                <div data-item-card="${item.id}" class="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3 relative">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-500">Item #${index + 1}</span>
+                        ${modalItems.length > 1 ? `<button type="button" onclick="removeOrderItemRow('${item.id}')" class="text-rose-500 hover:text-rose-700 text-xs font-semibold"><i class="fa-solid fa-trash-can mr-1"></i>Hapus</button>` : ''}
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nama Custom Keyboard (Teks/Huruf)</label>
+                        <input type="text" data-custom-name="${item.id}" value="${item.custom_name}" oninput="updateItemData('${item.id}', 'custom_name', this.value)" placeholder="mis: ALYA / GYACRAFT" class="w-full p-2.5 border border-slate-300 rounded-xl text-xs font-bold tracking-wider uppercase focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                        <div class="flex justify-between items-center mt-1 text-[10px] text-slate-500">
+                            <span>Jumlah Karakter: <strong data-char-count class="text-sky-600">${charCount}</strong></span>
+                            <span>Harga Item: <strong data-item-price class="text-emerald-600 text-xs font-bold">Rp${price.toLocaleString('id-ID')}</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-600 mb-1">Warna Base (Casing)</label>
+                            <select multiple onchange="updateItemColors('${item.id}', 'base_colors', this)" class="w-full p-1.5 border border-slate-200 rounded-lg text-xs h-16">
+                                ${baseColorOptions}
+                            </select>
+                            <span class="text-[9px] text-slate-400 block mt-0.5">*Tahan Ctrl/Cmd untuk pilih multiple</span>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-600 mb-1">Warna Huruf (Keycaps)</label>
+                            <select multiple onchange="updateItemColors('${item.id}', 'letter_colors', this)" class="w-full p-1.5 border border-slate-200 rounded-lg text-xs h-16">
+                                ${letterColorOptions}
+                            </select>
+                            <span class="text-[9px] text-slate-400 block mt-0.5">*Tahan Ctrl/Cmd untuk pilih multiple</span>
+                        </div>
+                    </div>
+
+                    <div class="p-2.5 bg-white border border-slate-200 rounded-xl space-y-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-semibold text-slate-600 text-[11px]">Follow IG @gyacraft (Promo):</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" ${item.follow_instagram ? 'checked' : ''} onchange="updateItemData('${item.id}', 'follow_instagram', this.checked)" class="sr-only peer">
+                                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-500"></div>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-semibold text-slate-600 text-[11px]">Gantungan / Aksesori:</span>
+                            <select onchange="updateItemData('${item.id}', 'accessory_type', this.value)" class="p-1 border border-slate-200 rounded-lg text-xs font-medium">
+                                <option value="Biji Lada" ${item.accessory_type === 'Biji Lada' ? 'selected' : ''}>Biji Lada (Default)</option>
+                                <option value="Ring / Kait Promo" ${item.accessory_type === 'Ring / Kait Promo' ? 'selected' : ''}>Ring / Kait Promo</option>
+                            </select>
+                        </div>
+                        
+                        ${item.accessory_type === 'Ring / Kait Promo' && !item.follow_instagram ? `
+                            <p class="text-[10px] text-amber-600 font-semibold flex items-center"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Peringatan: Ring Promo dipilih tapi status Follow IG belum dicentang!</p>
+                        ` : ''}
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            document.getElementById('modalTotalOrderPrice').innerText = `Rp${totalPrice.toLocaleString('id-ID')}`;
+        }
+
+        function updateItemData(itemId, field, value) {
+            const item = modalItems.find(i => i.id === itemId);
+            if (!item) return;
+            item[field] = value;
+            // Do not rebuild the text input on every keystroke: Safari iPhone
+            // otherwise loses focus and the caret.
+            if (field === 'custom_name') {
+                const card = document.querySelector(`[data-item-card="${itemId}"]`);
+                if (card) {
+                    const count = value.replace(/\s+/g, '').length;
+                    const price = calculateItemPrice(value);
+                    const countNode = card.querySelector('[data-char-count]');
+                    const priceNode = card.querySelector('[data-item-price]');
+                    if (countNode) countNode.textContent = count;
+                    if (priceNode) priceNode.textContent = `Rp${price.toLocaleString('id-ID')}`;
+                }
+                updateModalTotal();
+                return;
+            }
+            renderModalItems();
+        }
+
+        function updateModalTotal() {
+            const totalPrice = modalItems.reduce((sum, item) => sum + calculateItemPrice(item.custom_name), 0);
+            document.getElementById('modalTotalOrderPrice').innerText = `Rp${totalPrice.toLocaleString('id-ID')}`;
+        }
+
+        function updateItemColors(itemId, field, selectEl) {
+            const item = modalItems.find(i => i.id === itemId);
+            if (item) {
+                const selectedOptions = Array.from(selectEl.selectedOptions).map(opt => opt.value);
+                item[field] = selectedOptions.length > 0 ? selectedOptions : [field === 'base_colors' ? config.baseColors[0] : config.letterColors[0]];
+                renderModalItems();
+            }
+        }
+
+        async function submitNewOrder() {
+            if (!activeSession) return;
+
+            // Validate item names
+            for (let i of modalItems) {
+                if (!i.custom_name.trim()) {
+                    showToast("Semua item harus memiliki nama custom!", "warning");
+                    return;
+                }
+            }
+
+            const interactionId = 'INT-' + Date.now().toString(36).toUpperCase();
+            // Automatically count interaction for new customer group ordering
+            activeSession.total_interactions = (activeSession.total_interactions || 0) + 1;
+            await dbSave('sessions', activeSession);
+            await dbSave('interactions', {
+                interaction_id: interactionId,
+                session_id: activeSession.session_id,
+                created_at: new Date().toISOString()
+            });
+
+            let totalOrderPrice = 0;
+            const itemsProcessed = modalItems.map(item => {
+                const charCount = item.custom_name.replace(/\s+/g, '').length;
+                const unitPrice = calculateItemPrice(item.custom_name);
+                totalOrderPrice += unitPrice;
+
+                return {
+                    item_id: 'ITM-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2, 3),
+                    custom_name: item.custom_name.toUpperCase().trim(),
+                    letter_count: charCount,
+                    base_colors: item.base_colors,
+                    letter_colors: item.letter_colors,
+                    accessory_type: item.accessory_type,
+                    follow_instagram: item.follow_instagram,
+                    unit_price: unitPrice
+                };
+            });
+
+            const newOrder = {
+                order_id: 'CFD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase(),
+                session_id: activeSession.session_id,
+                interaction_id: interactionId,
+                buyer_name: document.getElementById('orderBuyerName').value.trim() || 'Pembeli Booth',
+                created_at: new Date().toISOString(),
+                ready_at: null,
+                paid_at: null,
+                status: 'Dalam Perakitan',
+                total_price: totalOrderPrice,
+                note: document.getElementById('orderNote').value.trim(),
+                items: itemsProcessed
+            };
+
+            await dbSave('orders', newOrder);
+            closeModal('modalNewOrder');
+            updateSessionUI();
+            await reloadAllData();
+            showToast("Pesanan baru berhasil dibuat!");
+        }
+
+        // --- ORDER STATUS MANAGEMENT ---
+        async function updateOrderStatus(orderId, newStatus) {
+            const orders = await dbGetAll('orders');
+            const order = orders.find(o => o.order_id === orderId);
+            if (!order) return;
+
+            order.status = newStatus;
+            const now = new Date().toISOString();
+            if (newStatus === 'Siap Diambil' && !order.ready_at) {
+                order.ready_at = now;
+            } else if (newStatus === 'Sudah Dibayar') {
+                if (!order.ready_at) order.ready_at = now;
+                order.paid_at = now;
+            }
+
+            await dbSave('orders', order);
+            await reloadAllData();
+            showToast(`Status Order ${orderId} diubah ke: ${newStatus}`);
+        }
+
+        // --- RENDER & FILTER ORDERS ---
+        function filterOrders(status) {
+            currentFilter = status;
+            document.querySelectorAll('.order-filter-btn').forEach(btn => {
+                if (btn.dataset.status === status) {
+                    btn.className = "order-filter-btn px-3 py-1.5 rounded-lg bg-slate-800 text-white font-semibold text-xs whitespace-nowrap";
+                } else {
+                    btn.className = "order-filter-btn px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 font-semibold text-xs whitespace-nowrap";
+                }
+            });
+            renderOrderList();
+        }
+
+        function renderOrderList() {
+            const container = document.getElementById('orderListContainer');
+            let filtered = activeOrders;
+            
+            if (currentFilter !== 'ALL') {
+                filtered = activeOrders.filter(o => o.status === currentFilter);
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                <div class="text-center py-10 bg-white rounded-2xl border border-slate-100">
+                    <i class="fa-solid fa-box-open text-3xl text-slate-300 mb-2"></i>
+                    <p class="text-xs text-slate-500">Tidak ada pesanan dengan status ini.</p>
+                </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(o => {
+                let statusBadgeClass = '';
+                if (o.status === 'Dalam Perakitan') statusBadgeClass = 'bg-amber-100 text-amber-800 border-amber-200';
+                else if (o.status === 'Siap Diambil') statusBadgeClass = 'bg-sky-100 text-sky-800 border-sky-200';
+                else if (o.status === 'Sudah Dibayar') statusBadgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                else statusBadgeClass = 'bg-rose-100 text-rose-800 border-rose-200';
+
+                const timeStr = new Date(o.created_at).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+
+                const itemsHtml = o.items.map(item => `
+                    <div class="text-xs p-2 bg-slate-50 rounded-lg border border-slate-100 space-y-1">
+                        <div class="flex justify-between font-bold text-slate-800">
+                            <span>${item.custom_name} (${item.letter_count} Karakter)</span>
+                            <span>Rp${item.unit_price.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-[10px] text-slate-500">
+                            <span>Base: <strong class="text-slate-700">${item.base_colors.join(', ')}</strong></span> | 
+                            <span>Huruf: <strong class="text-slate-700">${item.letter_colors.join(', ')}</strong></span>
+                        </div>
+                        <div class="text-[9px] text-slate-500 flex items-center justify-between">
+                            <span>Gantungan: ${item.accessory_type}</span>
+                            ${item.follow_instagram ? '<span class="text-pink-600 font-semibold"><i class="fa-brands fa-instagram mr-0.5"></i>Followed</span>' : '<span class="text-slate-400">No IG Follow</span>'}
+                        </div>
+                    </div>
+                `).join('');
+
+                return `
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="font-mono font-bold text-slate-800 text-sm">${o.order_id}</span>
+                            <span class="text-xs text-slate-400 ml-2">${timeStr}</span>
+                        </div>
+                        <span class="px-2.5 py-1 text-[11px] font-bold rounded-full border ${statusBadgeClass}">${o.status}</span>
+                    </div>
+
+                    <div class="text-xs">
+                        <p class="font-semibold text-slate-700">Pembeli: ${o.buyer_name}</p>
+                        ${o.note ? `<p class="text-[11px] text-slate-500 italic mt-0.5">"${o.note}"</p>` : ''}
+                    </div>
+
+                    <div class="space-y-1.5">
+                        ${itemsHtml}
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <div>
+                            <span class="text-[10px] text-slate-400 block">Total Transaksi</span>
+                            <span class="text-sm font-extrabold text-slate-800">Rp${o.total_price.toLocaleString('id-ID')}</span>
+                        </div>
+
+                        <!-- Status Action Buttons -->
+                        <div class="flex gap-1.5">
+                            ${o.status === 'Dalam Perakitan' ? `
+                                <button onclick="updateOrderStatus('${o.order_id}', 'Siap Diambil')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow">
+                                    🎁 Siap Diambil
+                                </button>
+                            ` : ''}
+                            ${o.status === 'Siap Diambil' ? `
+                                <button onclick="updateOrderStatus('${o.order_id}', 'Sudah Dibayar')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow">
+                                    💰 Bayar Lunas
+                                </button>
+                            ` : ''}
+                            ${o.status !== 'Batal' && o.status !== 'Sudah Dibayar' ? `
+                                <button onclick="updateOrderStatus('${o.order_id}', 'Batal')" class="px-2 py-1.5 bg-slate-100 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-semibold">
+                                    Batal
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // --- DASHBOARD & ANALYTICS DATA RELOAD ---
+        async function reloadAllData() {
+            const allOrders = await dbGetAll('orders');
+            const allSessions = await dbGetAll('sessions');
+            
+            // Filter data to current active session if present, else overall
+            activeOrders = activeSession 
+                ? allOrders.filter(o => o.session_id === activeSession.session_id)
+                : allOrders;
+
+            activeOrders.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+            renderOrderList();
+            renderDashboardKPIs(allSessions);
+            renderSessionHistory(allSessions);
+            updateAnalyticsCharts();
+        }
+
+        function renderDashboardKPIs(allSessions) {
+            const paidOrders = activeOrders.filter(o => o.status === 'Sudah Dibayar');
+            
+            // Total Omzet
+            const totalOmzet = paidOrders.reduce((sum, o) => sum + o.total_price, 0);
+            document.getElementById('kpiOmzet').innerText = `Rp${totalOmzet.toLocaleString('id-ID')}`;
+
+            // Total Interaksi
+            const totalInteractions = activeSession ? (activeSession.total_interactions || 0) : 0;
+            document.getElementById('kpiInteraksi').innerHTML = `${totalInteractions} <span class="text-xs font-normal text-slate-500">Kelompok</span>`;
+
+            // Unique buying groups (by interaction_id in orders)
+            const uniqueBuyerGroups = new Set(activeOrders.map(o => o.interaction_id)).size;
+
+            // Conversion Rate
+            const conversionRate = totalInteractions > 0 
+                ? Math.round((uniqueBuyerGroups / totalInteractions) * 100) 
+                : 0;
+            document.getElementById('kpiConversion').innerText = `${conversionRate}%`;
+
+            // Items Sold & Txn Count
+            let itemsSold = 0;
+            paidOrders.forEach(o => itemsSold += o.items.length);
+            document.getElementById('kpiTerjual').innerText = itemsSold;
+            document.getElementById('kpiOrderCount').innerText = paidOrders.length;
+
+            // AOV
+            const aov = paidOrders.length > 0 ? Math.round(totalOmzet / paidOrders.length) : 0;
+            document.getElementById('kpiAov').innerText = `AOV: Rp${aov.toLocaleString('id-ID')}`;
+        }
+
+        function renderSessionHistory(sessions) {
+            const container = document.getElementById('sessionHistoryList');
+            if (sessions.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-400">Belum ada riwayat sesi.</p>';
+                return;
+            }
+            container.innerHTML = sessions.sort((a,b) => new Date(b.started_at) - new Date(a.started_at)).map(s => `
+                <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between text-xs">
+                    <div>
+                        <p class="font-bold text-slate-700">${s.location} (${s.date})</p>
+                        <p class="text-[10px] text-slate-400">Mulai: ${new Date(s.started_at).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})} | Total Interaksi: ${s.total_interactions || 0}</p>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${s.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}">${s.status}</span>
+                </div>
+            `).join('');
+        }
+
+        // --- CHARTS VISUALIZATION ---
+        function initCharts() {
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            };
+
+            // Base Color Chart
+            const ctxBase = document.getElementById('chartBaseColors').getContext('2d');
+            charts.baseColors = new Chart(ctxBase, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ data: [], backgroundColor: '#ec4899' }] },
+                options: chartOptions
+            });
+
+            // Letter Color Chart
+            const ctxLetter = document.getElementById('chartLetterColors').getContext('2d');
+            charts.letterColors = new Chart(ctxLetter, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ data: [], backgroundColor: '#0284c7' }] },
+                options: chartOptions
+            });
+
+            // Letter Count Chart
+            const ctxCount = document.getElementById('chartLetterCount').getContext('2d');
+            charts.letterCount = new Chart(ctxCount, {
+                type: 'line',
+                data: { labels: [], datasets: [{ data: [], borderColor: '#a855f7', backgroundColor: '#f3e8ff', fill: true }] },
+                options: chartOptions
+            });
+        }
+
+        function updateAnalyticsCharts() {
+            if (!charts.baseColors) return;
+
+            const baseCounts = {};
+            const letterCounts = {};
+            const lengthCounts = {};
+
+            // Aggregate product data across paid/active orders
+            activeOrders.forEach(order => {
+                if (order.status === 'Batal') return;
+                order.items.forEach(item => {
+                    // Base colors
+                    item.base_colors.forEach(c => {
+                        baseCounts[c] = (baseCounts[c] || 0) + 1;
+                    });
+                    // Letter colors
+                    item.letter_colors.forEach(c => {
+                        letterCounts[c] = (letterCounts[c] || 0) + 1;
+                    });
+                    // Letter length
+                    const len = `${item.letter_count} Karakter`;
+                    lengthCounts[len] = (lengthCounts[len] || 0) + 1;
+                });
+            });
+
+            // Update Base Color Chart
+            charts.baseColors.data.labels = Object.keys(baseCounts);
+            charts.baseColors.data.datasets[0].data = Object.values(baseCounts);
+            charts.baseColors.update();
+
+            // Update Letter Color Chart
+            charts.letterColors.data.labels = Object.keys(letterCounts);
+            charts.letterColors.data.datasets[0].data = Object.values(letterCounts);
+            charts.letterColors.update();
+
+            // Update Length Chart
+            charts.letterCount.data.labels = Object.keys(lengthCounts);
+            charts.letterCount.data.datasets[0].data = Object.values(lengthCounts);
+            charts.letterCount.update();
+        }
+
+        // --- BACKUP & EXPORT FUNCTIONS ---
+        async function exportDataJSON() {
+            const sessions = await dbGetAll('sessions');
+            const orders = await dbGetAll('orders');
+            const interactions = await dbGetAll('interactions');
+
+            const backupData = {
+                export_date: new Date().toISOString(),
+                config: config,
+                sessions: sessions,
+                orders: orders,
+                interactions: interactions
+            };
+
+            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.href = url;
+            downloadAnchor.download = `GYACRAFT_POS_BACKUP_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+            showToast("Backup JSON siap diunduh. Simpan ke Files agar aman!");
+        }
+
+        async function importDataJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.sessions && data.orders) {
+                        for (let s of data.sessions) await dbSave('sessions', s);
+                        for (let o of data.orders) await dbSave('orders', o);
+                        if (data.interactions) {
+                            for (let i of data.interactions) await dbSave('interactions', i);
+                        }
+                        if (data.config) {
+                            config = data.config;
+                            await dbSave('settings', { key: 'app_config', value: config });
+                        }
+                        await loadActiveSession();
+                        await reloadAllData();
+                        showToast("Data restore berhasil diimpor!");
+                    } else {
+                        showToast("Format file JSON tidak valid", "danger");
+                    }
+                } catch (err) {
+                    showToast("Gagal membaca file JSON", "danger");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function exportOrdersCSV() {
+            const orders = await dbGetAll('orders');
+            if (orders.length === 0) {
+                showToast("Belum ada data pesanan untuk diexport", "warning");
+                return;
+            }
+
+            const csvEscape = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+            const csvRows = [];
+            csvRows.push(['Order ID', 'Waktu', 'Sesi ID', 'Interaction ID', 'Nama Pembeli', 'Custom Name', 'Jumlah Karakter', 'Warna Base', 'Warna Huruf', 'Aksesori', 'Follow IG', 'Harga Item (IDR)', 'Total Order (IDR)', 'Status']);
+
+            orders.forEach(o => {
+                o.items.forEach(item => {
+                    csvRows.push([
+                        o.order_id, new Date(o.created_at).toLocaleString('id-ID'),
+                        o.session_id, o.interaction_id, o.buyer_name, item.custom_name,
+                        item.letter_count, item.base_colors.join('/'), item.letter_colors.join('/'),
+                        item.accessory_type, item.follow_instagram ? 'Ya' : 'Tidak',
+                        item.unit_price, o.total_price, o.status
+                    ]);
+                });
+            });
+
+            const csvContent = '\\uFEFF' + csvRows.map(row => row.map(csvEscape).join(',')).join('\\r\\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `GYA_CRAFT_ORDERS_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+            showToast("Export CSV siap diunduh!");
+        }
+
+        // --- UI NAVIGATION & HELPERS ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if (btn.dataset.tab === tabId) {
+                    btn.classList.add('text-sky-600', 'font-bold');
+                    btn.classList.remove('text-slate-500');
+                } else {
+                    btn.classList.remove('text-sky-600', 'font-bold');
+                    btn.classList.add('text-slate-500');
+                }
+            });
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let bgClass = 'bg-slate-800 text-white';
+            if (type === 'warning') bgClass = 'bg-amber-600 text-white';
+            if (type === 'danger') bgClass = 'bg-rose-600 text-white';
+
+            toast.className = `${bgClass} text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg transition-all duration-300 transform translate-y-2 pointer-events-auto flex items-center space-x-2`;
+            toast.innerHTML = `<span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-[-10px]');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+    <script>
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('GYA POS Service Worker registered:', reg.scope))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

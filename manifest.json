@@ -1,0 +1,27 @@
+{
+  "id": "./",
+  "name": "GYA CRAFT — CFD POS",
+  "short_name": "GYA POS",
+  "description": "Aplikasi pencatatan pesanan GYA CRAFT untuk CFD, dapat digunakan offline.",
+  "lang": "id-ID",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "./assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
